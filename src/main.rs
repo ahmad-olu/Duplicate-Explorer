@@ -1,78 +1,39 @@
-use std::collections::HashMap;
-use std::fs;
-use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
+use std::{fs::File, io::{BufRead, BufReader}};
 
-#[derive(Debug, Eq)]
-struct FileInfo {
-    size: u64,
-    path: PathBuf,
-}
+use walkdir::{DirEntry, WalkDir};
 
-impl PartialEq for FileInfo {
-    fn eq(&self, other: &Self) -> bool {
-        self.size == other.size
-    }
-}
 
-impl Hash for FileInfo {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.size.hash(state);
-    }
-}
-
-fn get_file_info(file_path: &Path) -> Option<FileInfo> {
-    if let Ok(metadata) = fs::metadata(file_path) {
-        if metadata.is_file() {
-            return Some(FileInfo {
-                size: metadata.len(),
-                path: file_path.to_path_buf(),
-            });
-        }
-    }
-    None
-}
-
-fn find_duplicate_files(directory: &Path) {
-    let mut file_info_map: HashMap<FileInfo, Vec<PathBuf>> = HashMap::new();
-
-    for entry in fs::read_dir(directory).unwrap() {
-        if let Ok(entry) = entry {
-            let file_path = entry.path();
-            if let Some(file_info) = get_file_info(&file_path) {
-                file_info_map
-                    .entry(file_info)
-                    .or_insert_with(Vec::new)
-                    .push(file_path);
-            }
-        }
-    }
-
-    for (_, files) in file_info_map
-        .into_iter()
-        .filter(|(_, files)| files.len() > 1)
-    {
-        println!("Duplicate files found:");
-        for file in files {
-            println!("{}", file.display());
-        }
-        println!("---");
-    }
-}
+// fn is_hidden(entry: &DirEntry) -> bool {
+//     entry.file_name()
+//          .to_str()
+//          .map(|s| s.contains(r"y2mate.com - "))
+//          .unwrap_or(false)
+// }
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
 
-    if args.len() != 2 {
-        eprintln!("Usage: {} <directory>", args[0]);
-        std::process::exit(1);
+
+let walker = WalkDir::new(r"C:\Users\pc\Downloads\test").into_iter();
+    for entry in walker.filter_map(|e|e.ok()){
+            if entry.file_type().is_file(){
+                let file_path = entry.path();
+                if let Ok(file)= File::open(&file_path){
+                    let reader = BufReader::new(file);
+
+                    for (line_number, line) in reader.lines().enumerate() {
+                        if let Ok(line_content) = line{
+                            if line_content.contains(r"y2mate.com"){
+                                        println!("keyword found in {}: Line {} -{}",
+                                            file_path.display(),
+                                            line_number + 1,
+                                            line_content
+                        );
+                            }
+                        }
+                    }   
+                }else{
+                    eprintln!("Error opening file: {}", file_path.display());
+                }
+            }
     }
-
-    let directory = Path::new(&args[1]);
-    if !directory.is_dir() {
-        eprintln!("Error: {} is not a directory", directory.display());
-        std::process::exit(1);
-    }
-
-    find_duplicate_files(directory);
 }
