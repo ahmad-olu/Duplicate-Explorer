@@ -1,20 +1,16 @@
-use walkdir::WalkDir;
+use std::fs;
+use winwalk::*;
 
 fn main() {
-    let walker = WalkDir::new(r"C:\Users\pc\Downloads\test").into_iter();
-    for entry in walker
-        .filter_entry(|e| {
-            //println!("{:?}", e.file_name().to_str());
-            e.file_name()
-                .to_str()
-                .map(|s| {
-                    println!("{}", s.contains("y"));
-                    s.contains("y")
-                })
-                .unwrap_or(false)
-        })
-        .filter_map(|v| v.ok())
+    for file in walkdir(r"C:\Users\pc\Downloads\test", 1)
+        .into_iter()
+        .flatten()
     {
-        println!("{}", entry.path().display());
+        if file.name.starts_with("y2mate.com - a - ") {
+            //println!("{:#?}", file);
+            //println!("{}", file.path);
+            let new_name_path = file.path.replace("y2mate.com - a - ", "a");
+            fs::rename(file.path, new_name_path).expect("error renaming file");
+        }
     }
 }
